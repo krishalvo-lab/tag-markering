@@ -82,7 +82,7 @@ export function markPage(page, tagList, author, now) {
         a.setContents("");
         a.setCreationDate(now);
         a.setModificationDate(now);
-        try { a.getObject().put("NM", crypto.randomUUID()); } catch (e) { /* valgfritt */ }
+        try { a.getObject().put("NM", "(" + crypto.randomUUID() + ")"); } catch (e) { /* valgfritt */ }
         a.update();
         hits[t.tag] = (hits[t.tag] || 0) + 1;
       }
