@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tag-markering</title>
+<meta name="description" content="Gulmerker tags fra en Excel-, CSV- eller TXT-liste i mange PDF-er samtidig. Alt skjer lokalt i nettleseren.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='14' height='14' rx='3' fill='%23ffeb3b' stroke='%23c98a00' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a65;--line:#e3e1db;--acc:#c98a00;--accbg:#fff3c4;--ok:#2f7d32;--bad:#b3261e;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#21201d;--ink:#ecebe6;--mute:#9a988f;--line:#34322d;--acc:#f0b82b;--accbg:#3a3013;--ok:#7cc47f;--bad:#f08b84;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161614;--card:#21201d;--ink:#ecebe6;--mute:#9a988f;--line:#34322d;--acc:#f0b82b;--accbg:#3a3013;--ok:#7cc47f;--bad:#f08b84;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",-apple-system,BlinkMacSystemFont,sans-serif}
+main{max-width:780px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+h1 .dot{width:14px;height:14px;border-radius:3px;background:#ffeb3b;box-shadow:0 0 0 2px var(--acc) inset}
+.sub{color:var(--mute);margin:0 0 22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 10px;display:flex;gap:8px;align-items:center}
+.num{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accbg);color:var(--ink);font-size:12px;font-weight:600}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-block}
+button:hover,.btn:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#1d1d1b;font-weight:600;padding:10px 22px}
+button:disabled{opacity:.45;cursor:default}
+input[type=file]{display:none}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--mute);margin-top:10px;font-size:14px}
+.drop.over{border-color:var(--acc);background:var(--accbg);color:var(--ink)}
+.hint{color:var(--mute);font-size:13px;margin-top:8px}
+.picked{font-family:ui-monospace,Consolas,monospace;font-size:13px;margin-top:8px;word-break:break-all}
+.cols{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cols label{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;cursor:pointer;user-select:none}
+.cols input{display:none}
+.cols label:has(input:checked){background:var(--accbg);border-color:var(--acc)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.chip{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--accbg);padding:2px 7px;border-radius:4px}
+select,input[type=text]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:100%}
+.opts{display:grid;gap:8px}
+.opts label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:10px 0 6px}
+.bar>div{height:100%;width:0;background:var(--acc);transition:width .2s}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+td,th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);word-break:break-all}
+th{color:var(--mute);font-weight:500}
+td.n{text-align:right;font-variant-numeric:tabular-nums;word-break:normal}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.err{color:var(--bad);margin-top:8px}
+.foot{margin-top:18px}
+.hidden{display:none!important}
+.scroll{max-height:320px;overflow:auto}
+#engine{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+  <h1><span class="dot"></span>Tag-markering</h1>
+  <p class="sub">Gulmerker alle tags fra en Excel-, CSV- eller TXT-liste i mange PDF-er samtidig. Alt skjer i nettleseren – filene lastes ikke opp noe sted.</p>
+
+  <section class="card">
+    <h2><span class="num">1</span>PDF-er</h2>
+    <div class="row">
+      <button id="pickDir" class="hidden">Velg mappe…</button>
+      <label class="btn">Velg filer…<input type="file" id="pdfInput" multiple accept=".pdf,.zip,application/pdf,application/zip"></label>
+      <label id="recWrap" class="hidden"><input type="checkbox" id="recursive"> Ta med undermapper</label>
+    </div>
+    <div class="drop" id="pdfDrop">…eller dra PDF-er eller en ZIP fra PIMS hit</div>
+    <div class="picked" id="pdfInfo"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span>Tag-liste</h2>
+    <div class="row">
+      <label class="btn">Velg Excel / CSV / TXT…<input type="file" id="tagInput" accept=".xlsx,.xlsm,.csv,.txt"></label>
+    </div>
+    <div class="drop" id="tagDrop">…eller dra lista hit</div>
+    <div class="picked" id="tagName"></div>
+    <div id="tagOpts" class="hidden">
+      <div class="row" style="margin-top:10px" id="sheetRow"><span>Ark:</span><select id="sheet"></select></div>
+      <div class="hint">Kolonner med tags (velg én eller flere):</div>
+      <div class="cols" id="cols"></div>
+      <div class="hint" id="tagCount"></div>
+      <div class="chips" id="preview"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span>Valg</h2>
+    <div class="opts">
+      <label>Forfatter på markeringene: <input type="text" id="author" size="28"></label>
+    </div>
+  </section>
+
+  <div class="row">
+    <button class="primary" id="run" disabled>Start markering</button>
+    <button id="stop" class="hidden">Stopp</button>
+    <span class="hint" id="why" style="margin:0"></span>
+  </div>
+
+  <section class="card hidden" id="progress" style="margin-top:14px">
+    <h2>Fremdrift</h2>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="hint" id="progText"></div>
+  </section>
+
+  <section class="card hidden" id="result" style="margin-top:14px">
+    <h2>Resultat</h2>
+    <div id="summary"></div>
+    <div class="hint" id="saveInfo"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="dlZip">Last ned merkede PDF-er (ZIP)</button>
+      <button id="dlReport">Last ned rapport (CSV)</button>
+    </div>
+    <div class="scroll"><table id="fileTable"></table></div>
+    <div id="missingBox"></div>
+  </section>
+
+  <div class="err" id="err"></div>
+  <div class="foot hint"><span id="engine">Laster PDF-motor…</span> · Merkede filer får gul highlight (55 %) med forfatternavn, som i Adobe. Treffer bare hele ord.</div>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
