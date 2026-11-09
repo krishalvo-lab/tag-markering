@@ -139,6 +139,16 @@ function setTagFile(f) {
   $("tagName").textContent = f.name;
   loadTags(null);
 }
+// Lim inn fra Excel: tabulatorskilt tekst behandles som en virtuell .txt-fil
+let pasteTimer;
+$("tagPaste").addEventListener("input", () => {
+  clearTimeout(pasteTimer);
+  pasteTimer = setTimeout(() => {
+    const text = $("tagPaste").value;
+    if (!text.trim()) return;
+    setTagFile(new File([text], "Innlimt fra Excel.txt", { type: "text/plain" }));
+  }, 150);
+});
 $("tagInput").onchange = (e) => setTagFile(e.target.files[0]);
 dropZone($("tagDrop"), (fs) => setTagFile(fs[0]));
 $("sheet").onchange = () => { st.sheet = $("sheet").value; loadTags(null); };

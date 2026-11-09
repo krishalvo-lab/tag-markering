@@ -35,6 +35,8 @@ input[type=file]{display:none}
 .cols label:has(input:checked){background:var(--accbg);border-color:var(--acc)}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
 .chip{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--accbg);padding:2px 7px;border-radius:4px}
+textarea{width:100%;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:8px;border:1px dashed var(--line);border-radius:10px;background:var(--card);color:var(--ink);resize:vertical}
+textarea:focus{outline:none;border-color:var(--acc);border-style:solid}
 select,input[type=text]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:100%}
 .opts{display:grid;gap:8px}
 .opts label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -74,6 +76,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;word-break:normal}
       <label class="btn">Velg Excel / CSV / TXT…<input type="file" id="tagInput" accept=".xlsx,.xlsm,.csv,.txt"></label>
     </div>
     <div class="drop" id="tagDrop">…eller dra lista hit</div>
+    <textarea id="tagPaste" rows="3" placeholder="…eller kopier celler i Excel og lim inn her (Ctrl+V)"></textarea>
     <div class="picked" id="tagName"></div>
     <div id="tagOpts" class="hidden">
       <div class="row" style="margin-top:10px" id="sheetRow"><span>Ark:</span><select id="sheet"></select></div>
