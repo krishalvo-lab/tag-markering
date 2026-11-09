@@ -197,7 +197,8 @@ export async function readTable(file, sheetName) {
     data = rows.slice(hdr + 1).map(pad);
   }
   const low = headers.map((h) => h.toLowerCase());
-  let def = [0];
+  // Uten overskrift er det ren tag-tekst: bruk alle kolonner (f.eks. «tag, tag» på én linje)
+  let def = hdr < 0 ? headers.map((_, i) => i) : [0];
   for (const h of HINTS) { const i = low.indexOf(h); if (i >= 0) { def = [i]; break; } }
   return { sheets: t.sheets, sheet: t.sheet, headers, data, defaultCols: def };
 }
