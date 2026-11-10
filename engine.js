@@ -145,11 +145,14 @@ function scrubProducer(b) {
 }
 
 // ---------------------------------------------------------------- dokumentnr
-// Munin/Yggdrasil: UPP-AIL-I-XE-50102-01, UPP-EE510-XT-00012-01, FUI-AKSO-Z-SP-00011
-const DOC_SRC = "(?<![A-Z0-9-])(?:UPP|FUI)-[A-Z0-9]{2,6}(?:-[A-Z0-9])?-[A-Z]{2}-\\d{5}(?:-\\d{2})?(?![A-Z0-9])";
+// Prefiks + 2–7 ledd med bokstaver/tall: UPP-AIL-I-XE-50102-01, UPP-ET800-VB-00903,
+// UPP-AIL-L-XN-A-92L00104A-08, YGG-SSN-00684, FUI-AKSO-Z-SP-00011
+const DOC_SRC = "(?<![A-Z0-9-])(?:UPP|FUI|FPQ|YGG|IOC|NOA|OPS)(?:-[A-Z0-9]+){2,7}(?![A-Z0-9])";
 
 export function findDocNos(text) {
-  return [...String(text).toUpperCase().matchAll(new RegExp(DOC_SRC, "g"))].map((m) => ({ no: m[0], end: m.index + m[0].length - 1 }));
+  return [...String(text).toUpperCase().matchAll(new RegExp(DOC_SRC, "g"))]
+    .filter((m) => /\d{3}/.test(m[0]))
+    .map((m) => ({ no: m[0], end: m.index + m[0].length - 1 }));
 }
 
 const related = (a, b) => a === b || a.startsWith(b + "-") || b.startsWith(a + "-");
