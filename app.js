@@ -114,7 +114,7 @@ document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => e.preventDefault());
 
 // ---------------------------------------------------------------- dokumentnr
-// Leser dokumentnr fra tittelfeltet på hver side og lister dem kommaseparert for PIMS multi-søk.
+// Leser dokumentnr fra tittelfeltet på hver side og lister dem kommaseparert på én linje.
 $("docBtn").onclick = async () => {
   err();
   st.running = true; ready();
