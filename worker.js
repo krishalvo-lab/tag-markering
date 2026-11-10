@@ -20,6 +20,9 @@ self.onmessage = async (ev) => {
       const r = engine.markPdf(mupdf, new Uint8Array(m.data), tagList, author);
       const msg = { type: "marked", id: m.id, hits: r.hits, error: r.error, bytes: r.bytes };
       self.postMessage(msg, r.bytes ? [r.bytes.buffer] : []);
+    } else if (m.type === "docnos") {
+      const r = engine.docNumbers(mupdf, new Uint8Array(m.data), m.name);
+      self.postMessage({ type: "docnos", id: m.id, pages: r.pages, error: r.error });
     }
   } catch (e) {
     self.postMessage({ type: "error", id: m.id, error: String((e && e.message) || e) });
