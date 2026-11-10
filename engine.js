@@ -143,3 +143,82 @@ function scrubProducer(b) {
   }
   return b;
 }
+
+// ---------------------------------------------------------------- dokumentnr
+// Munin/Yggdrasil: UPP-AIL-I-XE-50102-01, UPP-EE510-XT-00012-01, FUI-AKSO-Z-SP-00011
+const DOC_SRC = "(?<![A-Z0-9-])(?:UPP|FUI)-[A-Z0-9]{2,6}(?:-[A-Z0-9])?-[A-Z]{2}-\\d{5}(?:-\\d{2})?(?![A-Z0-9])";
+
+export function findDocNos(text) {
+  return [...String(text).toUpperCase().matchAll(new RegExp(DOC_SRC, "g"))].map((m) => ({ no: m[0], end: m.index + m[0].length - 1 }));
+}
+
+const related = (a, b) => a === b || a.startsWith(b + "-") || b.startsWith(a + "-");
+
+/**
+ * Velg sidens eget dokumentnr blant kandidatene.
+ * cands: [{ no, d }] der d = avstand til nedre høyre hjørne (tittelfeltet), 0..1,4
+ * fileNos: dokumentnr funnet i filnavnet
+ * Returnerer { no, source, refs } – refs er andre nummer på siden (nabotegninger o.l.).
+ */
+export function pickDocNo(cands, fileNos, firstPage) {
+  const best = new Map();
+  for (const c of cands) if (!best.has(c.no) || c.d < best.get(c.no)) best.set(c.no, c.d);
+  const uniq = [...best].map(([no, d]) => ({ no, d })).sort((a, b) => a.d - b.d);
+  if (!uniq.length) {
+    return firstPage && fileNos.length
+      ? { no: fileNos[0], source: "kun filnavn", refs: [] }
+      : { no: null, source: firstPage ? "ikke funnet" : "", refs: [] };
+  }
+  let pick = null, source = "tittelfelt";
+  for (const c of uniq) {
+    const f = fileNos.find((x) => related(c.no, x));
+    if (f) { pick = f.length > c.no.length ? f : c.no; source = "tittelfelt + filnavn"; break; }
+  }
+  if (!pick) pick = uniq[0].no;
+  return { no: pick, source, refs: uniq.map((c) => c.no).filter((n) => !related(n, pick)) };
+}
+
+/** Les dokumentnr per side. Returnerer { pages: [{ page, no, source, refs }], error }. */
+export function docNumbers(mupdf, data, fileName) {
+  let doc;
+  try {
+    doc = mupdf.Document.openDocument(data, "application/pdf");
+  } catch (e) {
+    return { pages: [], error: "kunne ikke åpnes (skadet eller ikke en PDF)" };
+  }
+  try {
+    if (doc.needsPassword()) return { pages: [], error: "passordbeskyttet" };
+    const fileNos = findDocNos(String(fileName).split("/").pop()).map((m) => m.no);
+    const pages = [];
+    const n = doc.countPages();
+    for (let i = 0; i < n; i++) {
+      const page = doc.loadPage(i);
+      const [x0, y0, x1, y1] = page.getBounds();
+      const w = x1 - x0 || 1, h = y1 - y0 || 1;
+      const cands = [];
+      let chars = null;
+      const st = page.toStructuredText("preserve-whitespace");
+      st.walk({
+        beginLine() { chars = []; },
+        onChar(c, origin, font, size, quad) { chars.push({ c: c.length === 1 ? c : " ", q: quad }); },
+        endLine() {
+          if (!chars) return;
+          for (const m of findDocNos(chars.map((x) => x.c).join(""))) {
+            const q = chars[m.end].q;
+            const cx = (q[0] + q[2] + q[4] + q[6]) / 4, cy = (q[1] + q[3] + q[5] + q[7]) / 4;
+            cands.push({ no: m.no, d: Math.hypot((x1 - cx) / w, (y1 - cy) / h) });
+          }
+          chars = null;
+        },
+      });
+      st.destroy?.();
+      page.destroy?.();
+      pages.push({ page: i + 1, ...pickDocNo(cands, fileNos, i === 0) });
+    }
+    return { pages, error: null };
+  } catch (e) {
+    return { pages: [], error: String(e && e.message || e) };
+  } finally {
+    doc.destroy?.();
+  }
+}

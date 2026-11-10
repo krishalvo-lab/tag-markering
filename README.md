@@ -12,6 +12,15 @@ Gulmerker alle tags fra en Excel-, CSV- eller TXT-liste i mange PDF-er samtidig 
 4. Trykk **Start markering**.
 5. Last ned merkede PDF-er som ZIP, sammen med `Rapport.csv` (antall treff per tag og fil, og tags som ikke ble funnet). Valgte du en mappe i Edge/Chrome, lagres resultatet også rett i undermappen `Markert`.
 
+## Dokumentnr-liste til PIMS
+
+Når PDF-ene er valgt, gir **List dokumentnr** alle dokumentnumrene kommaseparert på én linje (`UPP-AIL-E-XT-00005-01, UPP-AIL-E-XT-00005-02`), klar til å lime inn i multi-søk i PIMS. Tag-liste trengs ikke.
+
+- Nummeret leses fra tegningen, side for side (samle-PDF-er gir ett nr per side). Stemmer et nummer på siden med filnavnet, brukes det; ellers velges nummeret nærmest nedre høyre hjørne (tittelfeltet).
+- Andre dokumentnr på siden (nabotegninger på match-linjer o.l.) holdes utenfor lista og vises som referanser.
+- Skannede PDF-er uten tekstlag: nummeret tas fra filnavnet og merkes som det.
+- Gjenkjenner `UPP-…` og `FUI-…`-nummer (Munin/Yggdrasil).
+
 ## Hvordan treffene finnes
 
 - Bare hele ord: `AU350-3-021-01` markeres ikke inni `JAU350-3-021-01`.

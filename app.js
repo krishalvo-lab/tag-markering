@@ -113,6 +113,53 @@ dropZone($("pdfDrop"), setFiles);
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => e.preventDefault());
 
+// ---------------------------------------------------------------- dokumentnr
+// Leser dokumentnr fra tittelfeltet på hver side og lister dem kommaseparert for PIMS multi-søk.
+$("docBtn").onclick = async () => {
+  err();
+  st.running = true; ready();
+  const rows = [];
+  const n = st.sources.length;
+  for (let i = 0; i < n; i++) {
+    const s = st.sources[i];
+    $("docProg").textContent = `${i + 1} av ${n}: ${s.path}`;
+    let r;
+    try {
+      const data = await s.read();
+      r = await call({ type: "docnos", data: data.buffer, name: s.path }, [data.buffer]);
+    } catch (e) { r = { pages: [], error: e.message }; }
+    if (r.error) rows.push({ path: s.path, page: "", no: null, source: r.error, refs: [] });
+    for (const p of r.pages || []) if (p.no || p.source) rows.push({ path: s.path, ...p });
+  }
+  $("docProg").textContent = "";
+  st.running = false; ready();
+  showDocNos(rows);
+};
+
+function showDocNos(rows) {
+  const nos = [...new Set(rows.map((r) => r.no).filter(Boolean))].sort((a, b) => a.localeCompare(b, "nb", { numeric: true }));
+  const refs = [...new Set(rows.flatMap((r) => r.refs))].filter((x) => !nos.includes(x)).sort();
+  const missing = rows.filter((r) => !r.no);
+  const weak = rows.filter((r) => r.source === "kun filnavn");
+  $("docBox").classList.remove("hidden");
+  $("docOut").value = nos.join(", ");
+  $("docInfo").textContent = `${nos.length} dokumentnr fra ${st.sources.length} PDF-${st.sources.length === 1 ? "fil" : "filer"}`;
+  $("docWarn").innerHTML =
+    (missing.length ? `<div class="hint bad">Fant ikke dokumentnr i ${missing.length} fil(er): ${esc(missing.map((r) => r.path).join(", "))}</div>` : "") +
+    (weak.length ? `<div class="hint">Uten tekstlag – nr tatt fra filnavnet: ${esc(weak.map((r) => r.no).join(", "))}</div>` : "") +
+    (refs.length ? `<div class="hint">Referanser på tegningene (ikke med i lista): ${esc(refs.join(", "))}</div>` : "");
+  $("docTable").innerHTML = "<tr><th>Fil</th><th>Side</th><th>Dokumentnr</th><th>Kilde</th></tr>" + rows.map((r) =>
+    `<tr><td>${esc(r.path)}</td><td class="n">${r.page}</td><td>${r.no ? esc(r.no) : '<span class="bad">–</span>'}</td><td>${esc(r.source)}</td></tr>`).join("");
+}
+
+$("docCopy").onclick = async () => {
+  const el = $("docOut");
+  try { await navigator.clipboard.writeText(el.value); }
+  catch { el.select(); document.execCommand("copy"); }
+  $("docCopy").textContent = "Kopiert ✓";
+  setTimeout(() => ($("docCopy").textContent = "Kopier"), 1500);
+};
+
 // ---------------------------------------------------------------- tag-liste
 async function loadTags(cols) {
   err();
@@ -161,6 +208,7 @@ function ready() {
     : !st.tags.length ? "Fant ingen tags i valgte kolonne(r). Kryss av en annen kolonne."
     : "";
   $("run").disabled = !!why || st.running;
+  $("docBtn").disabled = !st.engineReady || !st.sources.length || st.running;
   $("why").textContent = st.running ? "" : why;
 }
 

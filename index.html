@@ -68,6 +68,21 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;word-break:normal}
     </div>
     <div class="drop" id="pdfDrop">…eller dra PDF-er eller en ZIP fra PIMS hit</div>
     <div class="picked" id="pdfInfo"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="docBtn" disabled>List dokumentnr (PIMS multi-søk)</button>
+      <span class="hint" id="docProg" style="margin:0"></span>
+    </div>
+    <div id="docBox" class="hidden">
+      <textarea id="docOut" rows="3" readonly></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="docCopy">Kopier</button>
+        <span class="hint" id="docInfo" style="margin:0"></span>
+      </div>
+      <div id="docWarn"></div>
+      <details style="margin-top:10px"><summary class="hint">Vis per fil / side</summary>
+        <div class="scroll"><table id="docTable"></table></div>
+      </details>
+    </div>
   </section>
 
   <section class="card">
