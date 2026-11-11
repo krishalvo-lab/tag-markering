@@ -1,4 +1,5 @@
 import { unzip, zip, readTable, collectTags } from "./files.js";
+import { fileDocNos } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -128,7 +129,11 @@ $("docBtn").onclick = async () => {
       const data = await s.read();
       r = await call({ type: "docnos", data: data.buffer, name: s.path }, [data.buffer]);
     } catch (e) { r = { pages: [], error: e.message }; }
-    if (r.error) rows.push({ path: s.path, page: "", no: null, source: r.error, refs: [] });
+    if (r.error) {
+      // Fila lot seg ikke lese: bruk nummeret i filnavnet, og vis feilen så den kan sjekkes.
+      const fromName = fileDocNos(s.path)[0] || null;
+      rows.push({ path: s.path, page: "", no: fromName, source: (fromName ? "kun filnavn – " : "") + "feil: " + r.error, refs: [] });
+    }
     for (const p of r.pages || []) if (p.no || p.source) rows.push({ path: s.path, ...p });
   }
   $("docProg").textContent = "";
@@ -141,11 +146,13 @@ function showDocNos(rows) {
   const refs = [...new Set(rows.flatMap((r) => r.refs))].filter((x) => !nos.includes(x)).sort();
   const missing = rows.filter((r) => !r.no);
   const weak = rows.filter((r) => r.source === "kun filnavn");
+  const failed = rows.filter((r) => r.no && r.source.startsWith("kun filnavn – "));
   $("docBox").classList.remove("hidden");
   $("docOut").value = nos.join(", ");
   $("docInfo").textContent = `${nos.length} dokumentnr fra ${st.sources.length} PDF-${st.sources.length === 1 ? "fil" : "filer"}`;
   $("docWarn").innerHTML =
-    (missing.length ? `<div class="hint bad">Fant ikke dokumentnr i ${missing.length} fil(er): ${esc(missing.map((r) => r.path).join(", "))}</div>` : "") +
+    (missing.length ? `<div class="hint bad">Fant ikke dokumentnr i ${missing.length} fil(er): ${esc(missing.map((r) => `${r.path} (${r.source})`).join(", "))}</div>` : "") +
+    (failed.length ? `<div class="hint bad">Kunne ikke lese tegningen – nr tatt fra filnavnet, sjekk mot tittelfeltet: ${esc(failed.map((r) => `${r.no} (${r.source.slice(14)})`).join(", "))}</div>` : "") +
     (weak.length ? `<div class="hint">Uten tekstlag – nr tatt fra filnavnet: ${esc(weak.map((r) => r.no).join(", "))}</div>` : "") +
     (refs.length ? `<div class="hint">Referanser på tegningene (ikke med i lista): ${esc(refs.join(", "))}</div>` : "");
   $("docTable").innerHTML = "<tr><th>Fil</th><th>Side</th><th>Dokumentnr</th><th>Kilde</th></tr>" + rows.map((r) =>
