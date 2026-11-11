@@ -149,11 +149,19 @@ function scrubProducer(b) {
 // UPP-AIL-L-XN-A-92L00104A-08, YGG-SSN-00684, FUI-AKSO-Z-SP-00011
 const DOC_SRC = "(?<![A-Z0-9-])(?:UPP|FUI|FPQ|YGG|IOC|NOA|OPS)(?:-[A-Z0-9]+){2,7}(?![A-Z0-9])";
 
+// Bindestrek-varianter (U+2010–2015, U+2212, myk bindestrek) leses som vanlig "-".
+const DASHES = /[\u2010-\u2015\u2212\u00AD]/g;
+// Store bokstaver tegn for tegn, så posisjonene i teksten ikke forskyves (ß -> SS o.l.).
+const upper = (s) => Array.from(String(s).replace(DASHES, "-"), (c) => { const u = c.toUpperCase(); return u.length === c.length ? u : c; }).join("");
+
 export function findDocNos(text) {
-  return [...String(text).toUpperCase().matchAll(new RegExp(DOC_SRC, "g"))]
+  return [...upper(text).matchAll(new RegExp(DOC_SRC, "g"))]
     .filter((m) => /\d{3}/.test(m[0]))
     .map((m) => ({ no: m[0], end: m.index + m[0].length - 1 }));
 }
+
+/** Dokumentnr fra filnavnet (uten mappe). */
+export const fileDocNos = (fileName) => findDocNos(String(fileName).split("/").pop()).map((m) => m.no);
 
 const related = (a, b) => a === b || a.startsWith(b + "-") || b.startsWith(a + "-");
 
@@ -191,32 +199,40 @@ export function docNumbers(mupdf, data, fileName) {
   }
   try {
     if (doc.needsPassword()) return { pages: [], error: "passordbeskyttet" };
-    const fileNos = findDocNos(String(fileName).split("/").pop()).map((m) => m.no);
+    const fileNos = fileDocNos(fileName);
     const pages = [];
     const n = doc.countPages();
     for (let i = 0; i < n; i++) {
-      const page = doc.loadPage(i);
-      const [x0, y0, x1, y1] = page.getBounds();
-      const w = x1 - x0 || 1, h = y1 - y0 || 1;
-      const cands = [];
-      let chars = null;
-      const st = page.toStructuredText("preserve-whitespace");
-      st.walk({
-        beginLine() { chars = []; },
-        onChar(c, origin, font, size, quad) { chars.push({ c: c.length === 1 ? c : " ", q: quad }); },
-        endLine() {
-          if (!chars) return;
-          for (const m of findDocNos(chars.map((x) => x.c).join(""))) {
-            const q = chars[m.end].q;
-            const cx = (q[0] + q[2] + q[4] + q[6]) / 4, cy = (q[1] + q[3] + q[5] + q[7]) / 4;
-            cands.push({ no: m.no, d: Math.hypot((x1 - cx) / w, (y1 - cy) / h) });
-          }
-          chars = null;
-        },
-      });
-      st.destroy?.();
-      page.destroy?.();
-      pages.push({ page: i + 1, ...pickDocNo(cands, fileNos, i === 0) });
+      try {
+        const page = doc.loadPage(i);
+        const [x0, y0, x1, y1] = page.getBounds();
+        const w = x1 - x0 || 1, h = y1 - y0 || 1;
+        const cands = [];
+        let chars = null;
+        const st = page.toStructuredText("preserve-whitespace");
+        st.walk({
+          beginLine() { chars = []; },
+          onChar(c, origin, font, size, quad) { chars.push({ c: c.length === 1 ? c : " ", q: quad }); },
+          endLine() {
+            if (!chars) return;
+            for (const m of findDocNos(chars.map((x) => x.c).join(""))) {
+              const q = (chars[m.end] || chars.at(-1)).q;
+              const cx = (q[0] + q[2] + q[4] + q[6]) / 4, cy = (q[1] + q[3] + q[5] + q[7]) / 4;
+              cands.push({ no: m.no, d: Math.hypot((x1 - cx) / w, (y1 - cy) / h) });
+            }
+            chars = null;
+          },
+        });
+        st.destroy?.();
+        page.destroy?.();
+        pages.push({ page: i + 1, ...pickDocNo(cands, fileNos, i === 0) });
+      } catch (e) {
+        // Én side som ikke lar seg lese skal ikke velte hele fila: fall tilbake på filnavnet.
+        const why = "siden kunne ikke leses: " + String(e && e.message || e);
+        pages.push(i === 0 && fileNos.length
+          ? { page: 1, no: fileNos[0], source: "kun filnavn – " + why, refs: [] }
+          : { page: i + 1, no: null, source: why, refs: [] });
+      }
     }
     return { pages, error: null };
   } catch (e) {

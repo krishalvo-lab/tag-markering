@@ -19,6 +19,7 @@ Når PDF-ene er valgt, gir **Dokument nr liste** alle dokumentnumrene kommasepar
 - Nummeret leses fra tegningen, side for side (samle-PDF-er gir ett nr per side). Stemmer et nummer på siden med filnavnet, brukes det; ellers velges nummeret nærmest nedre høyre hjørne (tittelfeltet).
 - Andre dokumentnr på siden (nabotegninger på match-linjer o.l.) holdes utenfor lista og vises som referanser.
 - Skannede PDF-er uten tekstlag: nummeret tas fra filnavnet og merkes som det.
+- Kan en PDF ikke leses (skadet, passordbeskyttet, låst av et annet program), tas nummeret fra filnavnet og feilen vises i rødt under lista.
 - Gjenkjenner nummer som starter med `UPP-`, `FUI-`, `FPQ-`, `YGG-`, `IOC-`, `NOA-` eller `OPS-`, f.eks. `UPP-AIL-I-XE-50102-01`, `UPP-ET800-VB-00903`, `UPP-AIL-L-XN-A-92L00104A-08`, `YGG-SSN-00684`.
 
 ## Hvordan treffene finnes
