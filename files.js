@@ -15,22 +15,48 @@ export async function unzip(buf) {
     if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
   }
   if (eocd < 0) throw new Error("Ugyldig ZIP-fil");
-  const count = dv.getUint16(eocd + 10, true);
+  let count = dv.getUint16(eocd + 10, true);
+  let cdSize = dv.getUint32(eocd + 12, true);
   let p = dv.getUint32(eocd + 16, true);
+  const u64 = (o) => dv.getUint32(o, true) + dv.getUint32(o + 4, true) * 4294967296;
+  let cdEnd = eocd;
+  // ZIP64: strømmende pakkere (nedlasting fra web-systemer) skriver ofte dette også for små filer.
+  if (eocd >= 20 && dv.getUint32(eocd - 20, true) === 0x07064b50) {
+    const e64 = u64(eocd - 12);
+    if (e64 + 56 <= b.length && dv.getUint32(e64, true) === 0x06064b50) {
+      count = u64(e64 + 32); cdSize = u64(e64 + 40); p = u64(e64 + 48); cdEnd = e64;
+    }
+  }
+  // Data foran arkivet forskyver alle posisjoner like mye.
+  const cdStart = cdEnd - cdSize;
+  const base = cdStart > p && dv.getUint32(cdStart, true) === 0x02014b50 ? cdStart - p : 0;
+  p += base;
   const dec = new TextDecoder();
   const entries = [];
   for (let n = 0; n < count; n++) {
-    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    if (p + 46 > b.length || dv.getUint32(p, true) !== 0x02014b50) break;
     const method = dv.getUint16(p + 10, true);
-    const csize = dv.getUint32(p + 20, true);
+    let csize = dv.getUint32(p + 20, true);
+    const usize = dv.getUint32(p + 24, true);
     const nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
-    const off = dv.getUint32(p + 42, true);
+    let off = dv.getUint32(p + 42, true);
     const name = dec.decode(b.subarray(p + 46, p + 46 + nlen));
+    // ZIP64-tilleggsfelt: 64-bits verdier for feltene som står som 0xFFFFFFFF.
+    for (let x = p + 46 + nlen, xe = x + xlen; x + 4 <= xe; x += 4 + dv.getUint16(x + 2, true)) {
+      if (dv.getUint16(x, true) !== 1) continue;
+      let q = x + 4;
+      if (usize === 0xffffffff) q += 8;
+      if (csize === 0xffffffff) { csize = u64(q); q += 8; }
+      if (off === 0xffffffff) off = u64(q);
+      break;
+    }
+    off += base;
     p += 46 + nlen + xlen + clen;
     if (name.endsWith("/")) continue;
     entries.push({
       name,
       async read() {
+        if (off + 30 > b.length || dv.getUint32(off, true) !== 0x04034b50) throw new Error("ZIP-filen er skadet eller i et format som ikke støttes");
         const lnl = dv.getUint16(off + 26, true), lxl = dv.getUint16(off + 28, true);
         const start = off + 30 + lnl + lxl;
         const data = b.subarray(start, start + csize);
