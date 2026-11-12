@@ -55,11 +55,16 @@ async function expand(path, read) {
 async function setFiles(fileList) {
   err();
   st.dir = null;
-  const out = [];
+  const out = [], bad = [];
   for (const f of fileList) {
-    try { out.push(...(await expand(f.name, async () => new Uint8Array(await f.arrayBuffer())))); }
-    catch (e) { err(f.name + ": " + e.message); }
+    // Les inn med en gang: filer dratt fra ZIP-visning, Outlook e.l. er midlertidige og
+    // forsvinner fra disken etterpå («A requested file or directory could not be found»).
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      out.push(...(await expand(f.name, async () => bytes.slice())));
+    } catch (e) { bad.push(`${f.name} (${e.message})`); }
   }
+  if (bad.length) err(`Kunne ikke lese ${bad.length} fil(er) fra disken – lagre dem i en vanlig mappe og velg dem derfra: ${bad.join(", ")}`);
   st.sources = out;
   $("recWrap").classList.add("hidden");
   showSources();
