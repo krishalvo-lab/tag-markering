@@ -34,7 +34,12 @@ input[type=file]{display:none}
 .cols input{display:none}
 .cols label:has(input:checked){background:var(--accbg);border-color:var(--acc)}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
-.chip{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--accbg);padding:2px 7px;border-radius:4px}
+.chip,.chips button.chip{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--accbg);padding:2px 7px;border-radius:4px;border:1px solid transparent;color:var(--ink)}
+.chips button.grp{border-radius:999px;padding:3px 10px;font-size:13px;background:var(--accbg);border-color:var(--acc)}
+.chips button.grp small{color:var(--mute);margin-left:4px}
+.chips button.off{background:none;border-color:var(--line);color:var(--mute);text-decoration:line-through}
+.chips button.grp.part{background:none}
+.chips.scroll{max-height:220px}
 textarea{width:100%;margin-top:10px;font:13px ui-monospace,Consolas,monospace;padding:8px;border:1px dashed var(--line);border-radius:10px;background:var(--card);color:var(--ink);resize:vertical}
 textarea:focus{outline:none;border-color:var(--acc);border-style:solid}
 select,input[type=text]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:100%}
@@ -97,8 +102,22 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;word-break:normal}
       <div class="row" style="margin-top:10px" id="sheetRow"><span>Ark:</span><select id="sheet"></select></div>
       <div class="hint">Kolonner med tags (velg én eller flere):</div>
       <div class="cols" id="cols"></div>
-      <div class="hint" id="tagCount"></div>
-      <div class="chips" id="preview"></div>
+      <div id="groupBox">
+        <div class="hint">Typer – huk av/på om hele typen skal være med:</div>
+        <div class="chips" id="groups"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="hint" style="margin:0">Klikk på en tag for å ta den ut:</span>
+        <button id="tagAll">Alle på</button>
+        <button id="tagNone">Alle av</button>
+        <label><input type="checkbox" id="tagSort" checked> Sorter etter type</label>
+      </div>
+      <div class="chips scroll" id="preview"></div>
+      <textarea id="tagOut" rows="3" readonly></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="tagCopy">Kopier</button>
+        <span class="hint" id="tagCount" style="margin:0"></span>
+      </div>
     </div>
   </section>
 

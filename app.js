@@ -11,6 +11,7 @@ const st = {
   dir: null,          // FileSystemDirectoryHandle (Edge/Chrome)
   dirFiles: [],       // [{ path, handle }]
   tagFile: null, sheet: null, table: null, cols: [], tags: [],
+  all: [], off: new Set(),   // alle unike tags, og de som er huket av
   engineReady: false, running: false, stop: false,
   outputs: [], report: null,
 };
@@ -164,37 +165,81 @@ function showDocNos(rows) {
     `<tr><td>${esc(r.path)}</td><td class="n">${r.page}</td><td>${r.no ? esc(r.no) : '<span class="bad">–</span>'}</td><td>${esc(r.source)}</td></tr>`).join("");
 }
 
-$("docCopy").onclick = async () => {
-  const el = $("docOut");
-  try { await navigator.clipboard.writeText(el.value); }
-  catch { el.select(); document.execCommand("copy"); }
-  $("docCopy").textContent = "Kopiert ✓";
-  setTimeout(() => ($("docCopy").textContent = "Kopier"), 1500);
-};
+function copyButton(btn, el) {
+  btn.onclick = async () => {
+    try { await navigator.clipboard.writeText(el.value); }
+    catch { el.select(); document.execCommand("copy"); }
+    btn.textContent = "Kopiert ✓";
+    setTimeout(() => (btn.textContent = "Kopier"), 1500);
+  };
+}
+copyButton($("docCopy"), $("docOut"));
+copyButton($("tagCopy"), $("tagOut"));
 
 // ---------------------------------------------------------------- tag-liste
 async function loadTags(cols) {
   err();
   try {
     st.table = await readTable(st.tagFile, st.sheet);
-  } catch (e) { err(e.message); st.tags = []; ready(); return; }
+  } catch (e) { err(e.message); st.all = []; st.tags = []; ready(); return; }
   const t = st.table;
   st.sheet = t.sheet;
   st.cols = cols ?? t.defaultCols;
-  st.tags = collectTags(t.data, st.cols);
+  st.all = collectTags(t.data, st.cols);
   $("tagOpts").classList.remove("hidden");
   $("sheetRow").classList.toggle("hidden", !t.sheets.length);
   $("sheet").innerHTML = t.sheets.map((s) => `<option ${s === t.sheet ? "selected" : ""}>${esc(s)}</option>`).join("");
   $("cols").innerHTML = t.headers.map((h, i) => `<label><input type="checkbox" value="${i}" ${st.cols.includes(i) ? "checked" : ""}>${esc(h)}</label>`).join("");
   $("cols").querySelectorAll("input").forEach((c) => (c.onchange = () => loadTags([...$("cols").querySelectorAll("input:checked")].map((x) => +x.value))));
-  const prev = st.tags.slice(0, 12);
-  $("tagCount").textContent = st.tags.length + " unike tags" + (st.tags.length > prev.length ? ` – viser de første ${prev.length}` : "");
-  $("preview").innerHTML = prev.map((x) => `<span class="chip">${esc(x)}</span>`).join("");
+  renderTags();
+}
+
+const key = (t) => t.toLocaleLowerCase("nb");
+// Type = mønsteret i taggen: A-HT200002A → «A-A9A», A-82EL011B-425-B01 → «A-9A9A-9-A9».
+// Verdier uten tall («(blank)», «ja», «Grand Total») samles i én type.
+const NOTAG = "uten tall";
+const shape = (t) => /\d/.test(t) ? t.replace(/\d+/g, "9").replace(/\p{L}+/gu, "A") : NOTAG;
+
+function renderTags() {
+  const list = [...st.all];
+  if ($("tagSort").checked) list.sort((a, b) => a.localeCompare(b, "nb", { numeric: true }));
+  const groups = new Map();
+  for (const x of list) {
+    const s = shape(x);
+    if (!groups.has(s)) groups.set(s, []);
+    groups.get(s).push(x);
+  }
+  // Sortert: samme type står samlet (JB, JB, HT, HT), og stigende innen typen.
+  if ($("tagSort").checked) list.splice(0, list.length, ...[...groups.values()].flat());
+  st.tags = list.filter((x) => !st.off.has(key(x)));
+  $("groupBox").classList.toggle("hidden", groups.size < 2);
+  $("groups").innerHTML = [...groups].map(([s, m]) => {
+    const on = m.filter((x) => !st.off.has(key(x))).length;
+    return `<button class="grp ${on ? (on < m.length ? "part" : "") : "off"}" data-s="${esc(s)}">${on ? "☑" : "☐"} ${esc(s === NOTAG ? "Uten tall: " + m.slice(0, 2).join(", ") : m[0])}<small>${on}/${m.length}</small></button>`;
+  }).join("");
+  $("groups").querySelectorAll("button").forEach((b) => (b.onclick = () => {
+    const m = groups.get(b.dataset.s), allOff = m.every((x) => st.off.has(key(x)));
+    for (const x of m) allOff ? st.off.delete(key(x)) : st.off.add(key(x));
+    renderTags();
+  }));
+  $("preview").innerHTML = list.map((x, i) => `<button class="chip ${st.off.has(key(x)) ? "off" : ""}" data-i="${i}">${esc(x)}</button>`).join("");
+  $("preview").onclick = (e) => {
+    const b = e.target.closest("button.chip");
+    if (!b) return;
+    const k = key(list[+b.dataset.i]);
+    st.off.has(k) ? st.off.delete(k) : st.off.add(k);
+    renderTags();
+  };
+  $("tagOut").value = st.tags.join(", ");
+  $("tagCount").textContent = `${st.tags.length} av ${st.all.length} unike tags med`;
   ready();
 }
+$("tagSort").onchange = renderTags;
+$("tagAll").onclick = () => { st.off.clear(); renderTags(); };
+$("tagNone").onclick = () => { st.off = new Set(st.all.map(key)); renderTags(); };
 function setTagFile(f) {
   if (!f) return;
-  st.tagFile = f; st.sheet = null;
+  st.tagFile = f; st.sheet = null; st.off = new Set();
   $("tagName").textContent = f.name;
   loadTags(null);
 }
@@ -217,7 +262,7 @@ function ready() {
   const why = !st.engineReady ? "Venter på at PDF-motoren lastes…"
     : !st.sources.length ? "Velg PDF-er."
     : !st.tagFile ? "Velg en tag-liste."
-    : !st.tags.length ? "Fant ingen tags i valgte kolonne(r). Kryss av en annen kolonne."
+    : !st.tags.length ? (st.all.length ? "Ingen tags er slått på." : "Fant ingen tags i valgte kolonne(r). Kryss av en annen kolonne.")
     : "";
   $("run").disabled = !!why || st.running;
   $("docBtn").disabled = !st.engineReady || !st.sources.length || st.running;
