@@ -203,13 +203,15 @@ const shape = (t) => /\d/.test(t) ? t.replace(/\d+/g, "9").replace(/\p{L}+/gu, "
 function renderTags() {
   const list = [...st.all];
   if ($("tagSort").checked) list.sort((a, b) => a.localeCompare(b, "nb", { numeric: true }));
-  st.tags = list.filter((x) => !st.off.has(key(x)));
   const groups = new Map();
   for (const x of list) {
     const s = shape(x);
     if (!groups.has(s)) groups.set(s, []);
     groups.get(s).push(x);
   }
+  // Sortert: samme type står samlet (JB, JB, HT, HT), og stigende innen typen.
+  if ($("tagSort").checked) list.splice(0, list.length, ...[...groups.values()].flat());
+  st.tags = list.filter((x) => !st.off.has(key(x)));
   $("groupBox").classList.toggle("hidden", groups.size < 2);
   $("groups").innerHTML = [...groups].map(([s, m]) => {
     const on = m.filter((x) => !st.off.has(key(x))).length;
