@@ -1,4 +1,4 @@
-import { unzip, zip, readTable, collectTags } from "./files.js";
+import { unzip, zip, readTable, collectTags } from "./files.js?v=2";
 import { fileDocNos } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
@@ -222,6 +222,7 @@ function renderTags() {
     for (const x of m) allOff ? st.off.delete(key(x)) : st.off.add(key(x));
     renderTags();
   }));
+  const top = $("preview").scrollTop;   // behold rulleposisjonen når lista tegnes på nytt
   $("preview").innerHTML = list.map((x, i) => `<button class="chip ${st.off.has(key(x)) ? "off" : ""}" data-i="${i}">${esc(x)}</button>`).join("");
   $("preview").onclick = (e) => {
     const b = e.target.closest("button.chip");
@@ -230,6 +231,7 @@ function renderTags() {
     st.off.has(k) ? st.off.delete(k) : st.off.add(k);
     renderTags();
   };
+  $("preview").scrollTop = top;
   $("tagOut").value = st.tags.join(", ");
   $("tagCount").textContent = `${st.tags.length} av ${st.all.length} unike tags med`;
   ready();
