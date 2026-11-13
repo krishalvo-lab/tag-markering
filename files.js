@@ -205,8 +205,9 @@ export async function readTable(file, sheetName) {
 
 export function collectTags(data, cols) {
   const seen = new Set(), out = [];
-  for (const r of data) for (const c of cols) {
-    const t = r[c];
+  // Én celle kan ha flere tags («A2001-L017,A2001-L300»): del på komma, semikolon og linjeskift.
+  for (const r of data) for (const c of cols) for (const raw of (r[c] || "").split(/[,;\n]/)) {
+    const t = raw.trim();
     if (t && !seen.has(t.toLocaleLowerCase("nb"))) { seen.add(t.toLocaleLowerCase("nb")); out.push(t); }
   }
   return out;
