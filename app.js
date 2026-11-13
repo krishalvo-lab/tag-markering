@@ -11,7 +11,7 @@ const st = {
   dir: null,          // FileSystemDirectoryHandle (Edge/Chrome)
   dirFiles: [],       // [{ path, handle }]
   tagFile: null, sheet: null, table: null, cols: [], tags: [],
-  all: [], off: new Set(), seen: new Set(),   // alle unike tags, de som er slått av, og de vi har vist før
+  all: [], off: new Set(),   // alle unike tags, og de som er huket av
   engineReady: false, running: false, stop: false,
   outputs: [], report: null,
 };
@@ -186,12 +186,6 @@ async function loadTags(cols) {
   st.sheet = t.sheet;
   st.cols = cols ?? t.defaultCols;
   st.all = collectTags(t.data, st.cols);
-  // Verdier uten tall er nesten aldri tags («(blank)», «ja», «Grand Total»), og AP200/AP300 er områdekoder:
-  // slått av til du klikker dem på.
-  for (const x of st.all) {
-    const k = key(x);
-    if (!st.seen.has(k)) { st.seen.add(k); if (!/\d/.test(x) || AREA.test(x)) st.off.add(k); }
-  }
   $("tagOpts").classList.remove("hidden");
   $("sheetRow").classList.toggle("hidden", !t.sheets.length);
   $("sheet").innerHTML = t.sheets.map((s) => `<option ${s === t.sheet ? "selected" : ""}>${esc(s)}</option>`).join("");
@@ -201,9 +195,10 @@ async function loadTags(cols) {
 }
 
 const key = (t) => t.toLocaleLowerCase("nb");
-const AREA = /^AP\d{3}$/i;
 // Type = mønsteret i taggen: A-HT200002A → «A-A9A», A-82EL011B-425-B01 → «A-9A9A-9-A9».
-const shape = (t) => t.replace(/\d+/g, "9").replace(/\p{L}+/gu, "A");
+// Verdier uten tall («(blank)», «ja», «Grand Total») samles i én type.
+const NOTAG = "uten tall";
+const shape = (t) => /\d/.test(t) ? t.replace(/\d+/g, "9").replace(/\p{L}+/gu, "A") : NOTAG;
 
 function renderTags() {
   const list = [...st.all];
@@ -218,7 +213,7 @@ function renderTags() {
   $("groupBox").classList.toggle("hidden", groups.size < 2);
   $("groups").innerHTML = [...groups].map(([s, m]) => {
     const on = m.filter((x) => !st.off.has(key(x))).length;
-    return `<button class="grp ${on ? (on < m.length ? "part" : "") : "off"}" data-s="${esc(s)}">${esc(m[0])}<small>${on}/${m.length}</small></button>`;
+    return `<button class="grp ${on ? (on < m.length ? "part" : "") : "off"}" data-s="${esc(s)}">${on ? "☑" : "☐"} ${esc(s === NOTAG ? "Uten tall: " + m.slice(0, 2).join(", ") : m[0])}<small>${on}/${m.length}</small></button>`;
   }).join("");
   $("groups").querySelectorAll("button").forEach((b) => (b.onclick = () => {
     const m = groups.get(b.dataset.s), allOff = m.every((x) => st.off.has(key(x)));
@@ -242,7 +237,7 @@ $("tagAll").onclick = () => { st.off.clear(); renderTags(); };
 $("tagNone").onclick = () => { st.off = new Set(st.all.map(key)); renderTags(); };
 function setTagFile(f) {
   if (!f) return;
-  st.tagFile = f; st.sheet = null; st.off = new Set(); st.seen = new Set();
+  st.tagFile = f; st.sheet = null; st.off = new Set();
   $("tagName").textContent = f.name;
   loadTags(null);
 }
